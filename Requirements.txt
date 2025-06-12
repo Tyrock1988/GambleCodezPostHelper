@@ -1,3 +1,4 @@
 aiogram==3.4.1
 aiohttp==3.7.4.post0  # You had issues with newer versions on Termux
 python-dotenv==1.0.1
+flask==2.3.
