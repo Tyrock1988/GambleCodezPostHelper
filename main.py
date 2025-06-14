@@ -1,4 +1,16 @@
-import re import json import asyncio import logging import os from pathlib import Path from aiogram import Bot, Dispatcher, F from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton from aiogram.enums import ParseMode from aiogram.filters import Command from aiogram.client.default import DefaultBotProperties from dotenv import load_dotenv from keep_alive import keep_alive
+import re
+import json
+import asyncio
+import logging
+import os
+from pathlib import Path
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.enums import ParseMode
+from aiogram.filters import Command
+from aiogram.client.default import DefaultBotProperties
+from dotenv import load_dotenv
+from keep_alive import keep_alive
 
 Load environment variables
 
