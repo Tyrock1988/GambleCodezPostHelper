@@ -1,16 +1,4 @@
-import re
-import json
-import asyncio
-import logging
-import os
-from pathlib import Path
-from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.enums import ParseMode
-from aiogram.filters import Command
-from aiogram.client.default import DefaultBotProperties
-from dotenv import load_dotenv
-from keep_alive import keep_alive
+import re import json import asyncio import logging import os from pathlib import Path from aiogram import Bot, Dispatcher, F from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton from aiogram.enums import ParseMode from aiogram.filters import Command from aiogram.client.default import DefaultBotProperties from dotenv import load_dotenv from keep_alive import keep_alive
 
 Load environment variables
 
@@ -50,11 +38,13 @@ def is_admin(user_id: int) -> bool: return int(user_id) in ADMIN_IDS
 
 === COMMAND HANDLERS ===
 
-@dp.message(Command("start")) async def cmd_start(msg: Message): try: me = await bot.get_me() status = f"\n🤖 <b>{me.first_name}</b> is online.\nUsername: @{me.username}\nID: <code>{me.id}</code>\n" except Exception as e: logger.error(f"Status check failed: {e}") status = "⚠️ Bot is online, but couldn't fetch status."
+@dp.message(Command("start")) async def cmd_start(msg: Message): try: me = await bot.get_me() status = f"\n🤖 <b>{me.first_name}</b> is online.\nUsername: @{me.username}\nID: <code>{me.id}</code>" except Exception as e: logger.error(f"Status check failed: {e}") status = "\n⚠️ Bot is online, but couldn't fetch status."
 
 welcome_text = f"""
 
-{status} <b>Admin Commands:</b> /addurl [Label] [URL] — Add one referral link
+{status}
+
+<b>Admin Commands:</b> /addurl [Label] [URL] — Add one referral link
 /addurls — Add multiple links (one per line)
 /delurl [URL] — Remove a referral link
 /delurls — Remove multiple referral links
@@ -154,4 +144,82 @@ try:
             not_found.append(escape_html(url))
 
     if removed:
+        save_links(links_db)
+
+    reply = ""
+    if removed:
+        reply += "❌ Removed:\n" + "\n".join(removed)
+    if not_found:
+        reply += "\n\n⚠️ Not found:\n" + "\n".join(not_found)
+
+    await msg.reply(reply or "No URLs to remove.")
+except Exception as e:
+    logger.error(f"delurls error: {e}")
+    await msg.reply("❌ Error deleting URLs.")
+
+@dp.message(Command("listurls")) async def cmd_listurls(msg: Message): if not is_admin(msg.from_user.id): await msg.reply("❌ Only admins can use this command.") return
+
+try:
+    if not links_db:
+        await msg.reply("No links saved.")
+        return
+
+    lines = [f"{i}. {escape_html(v['label'])} → {escape_html(k)}" for i, (k, v) in enumerate(links_db.items(), 1)]
+    text = f"<b>Saved Links ({len(links_db)}):</b>\n\n" + "\n".join(lines)
+
+    for i in range(0, len(text), 4000):
+        await msg.reply(text[i:i + 4000])
+except Exception as e:
+    logger.error(f"listurls error: {e}")
+    await msg.reply("❌ Error listing links.")
+
+@dp.message(Command("setbutton")) async def cmd_setbutton(msg: Message): if not is_admin(msg.from_user.id): await msg.reply("❌ Only admins can use this command.") return
+
+try:
+    parts = msg.text.split(maxsplit=2)
+    if len(parts) < 3:
+        await msg.reply("Usage: /setbutton [URL] [Text]")
+        return
+
+    url, label = parts[1], parts[2]
+    if url not in links_db:
+        await msg.reply("URL not found.")
+        return
+
+    links_db[url]["label"] = label
+    save_links(links_db)
+    await msg.reply(f"🔁 Updated label for {escape_html(url)} to: <b>{escape_html(label)}</b>")
+except Exception as e:
+    logger.error(f"setbutton error: {e}")
+    await msg.reply("❌ Error updating label.")
+
+=== AUTO FORMAT ===
+
+@dp.message() async def auto_edit(msg: Message): try: text = msg.text or "" if not text or not links_db: return
+
+found_urls = [url for url in links_db if url in text]
+    if not found_urls:
+        return
+
+    code_match = re.search(r'(code[:\s]*)([A-Za-z0-9@_-]+)', text, re.IGNORECASE)
+    code_text = f"<b>Code:</b> {escape_html(code_match.group(2))}\n\n" if code_match else ""
+    title = text.splitlines()[0] if text.splitlines() else "Referral Links"
+    new_text = f"<b>{escape_html(title)}</b>\n\n{code_text}<b>Links below:</b>"
+
+    keyboard = build_keyboard(found_urls)
+    await bot.edit_message_text(chat_id=msg.chat.id, message_id=msg.message_id, text=new_text, reply_markup=keyboard)
+except Exception as e:
+    logger.warning(f"Auto-format failed: {e}")
+
+=== LIFECYCLE ===
+
+async def on_startup(): logger.info("Bot is starting...") try: await bot.delete_webhook(drop_pending_updates=True) logger.info("Webhook deleted.") except Exception as e: logger.warning(f"Webhook delete failed: {e}")
+
+async def on_shutdown(): logger.info("Bot shutting down...") await bot.session.close()
+
+=== MAIN LOOP ===
+
+async def main(): retry = 0 while retry < 5: try: await on_startup() await dp.start_polling(bot, skip_updates=True) except KeyboardInterrupt: break except Exception as e: retry += 1 logger.error(f"Crash: {e}, retrying in {2 ** retry}s...") await asyncio.sleep(min(60, 2 ** retry)) finally: await on_shutdown()
+
+if name == "main": keep_alive() try: asyncio.run(main()) except Exception as e: logger.error(f"Fatal: {e}")
 
