@@ -12,21 +12,20 @@ from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
 from keep_alive import keep_alive
 
-# Load environment variables
+# === ENV SETUP ===
 load_dotenv()
 
-# === CONFIG ===
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable is required")
 
-ADMIN_IDS = [int(id.strip()) for id in os.getenv("ADMIN_IDS", "").split(",") if id.strip().isdigit()]
+ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 if not ADMIN_IDS:
-    print("Warning: No ADMIN_IDS configured. Bot will not respond to admin commands.")
+    print("⚠️ Warning: No ADMIN_IDS configured. Bot admin commands will be unprotected.")
 
 LINKS_FILE = Path("links.json")
 
-# Setup logging
+# === LOGGING ===
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -71,12 +70,12 @@ def build_keyboard(urls):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def escape_html(text):
-    return text.replace("&", "&amp").replace("<", "&lt;").replace(">", "&gt;") if text else ""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") if text else ""
 
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
+def is_admin(user_id: int) -> bool:
+    return int(user_id) in ADMIN_IDS
 
-# === COMMAND HANDLERS ===
+# === COMMANDS ===
 @dp.message(Command("start"))
 async def cmd_start(msg: Message):
     try:
@@ -266,7 +265,7 @@ async def cmd_setbutton(msg: Message):
         logger.error(f"setbutton error: {e}")
         await msg.reply("❌ Error updating label.")
 
-# === AUTO FORMAT ===
+# === AUTO-FORMAT ===
 @dp.message()
 async def auto_edit(msg: Message):
     try:
