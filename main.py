@@ -30,21 +30,19 @@ bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) dp
 
 === HELPERS ===
 
-def is_admin(user_id: int) -> bool: return int(user_id) in ADMIN_IDS
-
 def build_keyboard(urls): buttons = [] for url in urls: label = links_db[url].get("label", "Sign Up Now") buttons.append([InlineKeyboardButton(text=label, url=url)]) return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def escape_html(text): return text.replace("&", "&amp").replace("<", "<").replace(">", ">") if text else ""
 
+def is_admin(user_id: int) -> bool: return int(user_id) in ADMIN_IDS
+
 === COMMAND HANDLERS ===
 
-@dp.message(Command("start")) async def cmd_start(msg: Message): try: me = await bot.get_me() status = f"\U0001F916 <b>{me.first_name}</b> is online.\nUsername: @{me.username}\nID: <code>{me.id}</code>\n" except Exception as e: logger.error(f"Status check failed: {e}") status = "⚠️ Bot is online, but couldn't fetch status."
+@dp.message(Command("start")) async def cmd_start(msg: Message): try: me = await bot.get_me() status = f"\n🤖 <b>{me.first_name}</b> is online.\nUsername: @{me.username}\nID: <code>{me.id}</code>\n" except Exception as e: logger.error(f"Status check failed: {e}") status = "⚠️ Bot is online, but couldn't fetch status."
 
 welcome_text = f"""
 
-{status}
-
-<b>Admin Commands:</b> /addurl [Label] [URL] — Add one referral link
+{status} <b>Admin Commands:</b> /addurl [Label] [URL] — Add one referral link
 /addurls — Add multiple links (one per line)
 /delurl [URL] — Remove a referral link
 /delurls — Remove multiple referral links
@@ -144,15 +142,4 @@ try:
             not_found.append(escape_html(url))
 
     if removed:
-        save_links(links_db)
-
-    reply = ""
-    if removed:
-        reply += "❌ Removed:\n" + "\n".join(removed)
-    if not_found:
-        reply += "\n\n⚠️ Not found:\n" + "\n".join(not_found)
-
-    await msg.reply(reply or "No URLs to remove.")
-except Exception as e:
-    logger.error(f"delurls
 
